@@ -15,6 +15,8 @@ CONVERSATION_BETWEEN = {}
 
 if config("DEPLOY") == "local":
     REQUESTS_URL = "https://localhost:8000/api/messages/"
+elif config("DEPLOY") == "test":
+    REQUESTS_URL = "https://mist-backend-test.herokuapp.com/api/messages/"
 else:
     REQUESTS_URL = "https://mist-backend.herokuapp.com/api/messages/"
 
@@ -22,8 +24,8 @@ def process_convo_init_json(convo_init_json):
     try:
         valid_convo_init_obj = json.loads(convo_init_json)
         assert valid_convo_init_obj["type"] == "init"
-        assert valid_convo_init_obj["from_user"] != None
-        assert valid_convo_init_obj["to_user"] != None
+        assert valid_convo_init_obj["sender"] != None
+        assert valid_convo_init_obj["receiver"] != None
         return valid_convo_init_obj, None
     except json.decoder.JSONDecodeError as e:
         return None, e
@@ -34,8 +36,8 @@ def process_message_json(message_json):
     try:
         valid_message_obj = json.loads(message_json)
         assert valid_message_obj["type"] == "message"
-        assert valid_message_obj["from_user"] != None
-        assert valid_message_obj["to_user"] != None
+        assert valid_message_obj["sender"] != None
+        assert valid_message_obj["receiver"] != None
         assert valid_message_obj["text"] != None
         return valid_message_obj, None
     except json.decoder.JSONDecodeError as e:
@@ -102,7 +104,7 @@ async def handler(websocket):
     # To standardize the socket indexing, 
     # the user earlier in the alphabet will be the first layer
     # the user later in the alphabet will be the second layer
-    users = [valid_convo_init_obj["from_user"], valid_convo_init_obj["to_user"]]
+    users = [valid_convo_init_obj["sender"], valid_convo_init_obj["receiver"]]
     users.sort()
     user1, user2 = users
     
