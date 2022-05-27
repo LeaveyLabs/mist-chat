@@ -13,9 +13,9 @@ import os
 # two-dimensional, two conversation participants
 CONVERSATION_BETWEEN = {}
 
-if config("DEPLOY") == "local":
+if config("DEPLOY") == "LOCAL":
     REQUESTS_URL = "https://localhost:8000/api/messages/"
-elif config("DEPLOY") == "test":
+elif config("DEPLOY") == "TEST":
     REQUESTS_URL = "https://mist-backend-test.herokuapp.com/api/messages/"
 else:
     REQUESTS_URL = "https://mist-backend.herokuapp.com/api/messages/"
