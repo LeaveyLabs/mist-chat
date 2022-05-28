@@ -1,8 +1,6 @@
 import asyncio
-from ntpath import join
 import signal
 from time import time
-from tracemalloc import start
 
 import websockets
 import json
@@ -55,7 +53,6 @@ async def error(websocket, message):
 async def execute_conversation(websocket, connected):
     """
     Receive and process messages from a user.
-
     """
     async for message in websocket:
         # Load JSON of the event
@@ -92,7 +89,6 @@ async def join_conversation(websocket, user1, user2):
 async def handler(websocket):
     """
     Handle a connection and dispatch it according to who is connecting.
-
     """
     convo_init_json = await websocket.recv()
     valid_convo_init_obj, e = process_convo_init_json(convo_init_json)
