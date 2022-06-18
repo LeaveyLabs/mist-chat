@@ -12,7 +12,7 @@ import os
 CONVERSATION_BETWEEN = {}
 
 if config("DEPLOY") == "LOCAL":
-    REQUESTS_URL = "https://localhost:8000/api/messages/"
+    REQUESTS_URL = config("URL")
 elif config("DEPLOY") == "TEST":
     REQUESTS_URL = "https://mist-backend-test.herokuapp.com/api/messages/"
 else:
@@ -29,6 +29,10 @@ def process_convo_init_json(convo_init_json):
         return None, e
     except KeyError as e:
         return None, e
+    except TypeError as e:
+        return None, e
+    except AssertionError as e:
+        return None, e
 
 def process_message_json(message_json):
     try:
@@ -36,11 +40,16 @@ def process_message_json(message_json):
         assert valid_message_obj["type"] == "message"
         assert valid_message_obj["sender"] != None
         assert valid_message_obj["receiver"] != None
-        assert valid_message_obj["text"] != None
+        assert valid_message_obj["body"] != None
+        assert valid_message_obj["token"] != None
         return valid_message_obj, None
     except json.decoder.JSONDecodeError as e:
         return None, e
     except KeyError as e:
+        return None, e
+    except TypeError as e:
+        return None, e
+    except AssertionError as e:
         return None, e
 
 async def error(websocket, message):
@@ -48,6 +57,15 @@ async def error(websocket, message):
         "type": "error",
         "message": message,
     }
+    print(event)
+    await websocket.send(json.dumps(event))
+
+async def success(websocket, message):
+    event = {
+        "type": "success",
+        "message": message,
+    }
+    print(event)
     await websocket.send(json.dumps(event))
 
 async def execute_conversation(websocket, connected):
@@ -60,31 +78,45 @@ async def execute_conversation(websocket, connected):
         # If improperly formatted, throw back error
         if not valid_message_obj:
             await error(websocket,
-            "Improperly formatted message... JSON Error: {}".format(e))
+            f"Improperly formatted message... JSON Error: {e}")
         else: 
+            token = valid_message_obj.pop("token")
             valid_message_obj["timestamp"] = time()
+            print(valid_message_obj)
             # Post to database
-            r = requests.post(REQUESTS_URL, data=valid_message_obj)
-            print(r.text)
-            # Broadcast to all connected sockets
-            websockets.broadcast(connected, json.dumps(valid_message_obj))
+            r = requests.post(
+                REQUESTS_URL, 
+                data=valid_message_obj, 
+                headers={
+                    'Authorization': f'Token {token}'
+                })
+            if r.status_code > 200 and r.status_code < 299:
+                # Broadcast to all connected sockets
+                websockets.broadcast(connected, json.dumps(valid_message_obj))
+            else:
+                await error(websocket,
+                f"Could not POST message to database... {r.text}")
 
 async def start_conversation(websocket, user1, user2):
     if user1 not in CONVERSATION_BETWEEN: CONVERSATION_BETWEEN[user1] = {}
     try:
         CONVERSATION_BETWEEN[user1][user2] = {websocket}
-        await websocket.send("Beginning conversation between {} and {}".format(user1, user2))
+        await success(websocket, f"Beginning conversation between {user1} and {user2}")
         await execute_conversation(websocket, CONVERSATION_BETWEEN[user1][user2])
     finally:
-        del CONVERSATION_BETWEEN[user1][user2]
+        CONVERSATION_BETWEEN[user1][user2].remove(websocket)
+        if not CONVERSATION_BETWEEN[user1][user2]:
+            del CONVERSATION_BETWEEN[user1][user2]
 
 async def join_conversation(websocket, user1, user2):
     try:
         CONVERSATION_BETWEEN[user1][user2].add(websocket)
-        await websocket.send("Joining conversation between {} and {}".format(user1, user2))
+        await success(websocket, f"Joining conversation between {user1} and {user2}")
         await execute_conversation(websocket, CONVERSATION_BETWEEN[user1][user2])
     finally:
         CONVERSATION_BETWEEN[user1][user2].remove(websocket)
+        if not CONVERSATION_BETWEEN[user1][user2]:
+            del CONVERSATION_BETWEEN[user1][user2]
 
 async def handler(websocket):
     """
@@ -94,7 +126,7 @@ async def handler(websocket):
     valid_convo_init_obj, e = process_convo_init_json(convo_init_json)
     # Only process valid conversation initalization requests
     if not valid_convo_init_obj:
-        await error(websocket, "Could not instantiate conversation... JSON Error: {}".format(e))
+        await error(websocket, f"Could not instantiate conversation... JSON Error: {e}")
         return
     
     # To standardize the socket indexing, 
@@ -103,7 +135,6 @@ async def handler(websocket):
     users = [valid_convo_init_obj["sender"], valid_convo_init_obj["receiver"]]
     users.sort()
     user1, user2 = users
-    
     # Either start or join a conversation
     conversation_started = (user1 in CONVERSATION_BETWEEN and 
                             user2 in CONVERSATION_BETWEEN[user1] and 
