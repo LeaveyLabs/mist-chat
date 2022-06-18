@@ -1,5 +1,4 @@
 import asyncio
-from cmath import e
 import json
 import websockets
 import os

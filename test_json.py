@@ -1,6 +1,6 @@
 import json
 import unittest
-from chat import process_convo_init_json, process_message_json
+from chat_socket.chat import process_convo_init_json, process_message_json
 
 class JsonFormatTest(unittest.TestCase):
     # CONVO INIT    

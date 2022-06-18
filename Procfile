@@ -1,1 +1,1 @@
-web: python socket/chat.py
+web: python3 chat_socket/chat.py
