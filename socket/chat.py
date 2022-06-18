@@ -11,12 +11,7 @@ import os
 # two-dimensional, two conversation participants
 CONVERSATION_BETWEEN = {}
 
-if config("DEPLOY") == "LOCAL":
-    REQUESTS_URL = config("URL")
-elif config("DEPLOY") == "TEST":
-    REQUESTS_URL = "https://mist-backend-test.herokuapp.com/api/messages/"
-else:
-    REQUESTS_URL = "https://mist-backend.herokuapp.com/api/messages/"
+REQUESTS_URL = os.environ["URL"]
 
 def process_convo_init_json(convo_init_json):
     try:
