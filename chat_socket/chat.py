@@ -87,6 +87,7 @@ async def execute_conversation(websocket, connected):
                 })
             if r.status_code > 200 and r.status_code < 299:
                 # Broadcast to all connected sockets
+                valid_message_obj['id'] = r.data.get('id')
                 websockets.broadcast(connected, json.dumps(valid_message_obj))
             else:
                 await error(websocket,
